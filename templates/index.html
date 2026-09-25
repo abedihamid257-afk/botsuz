@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد مدیریت ربات</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">پنل مدیریت ربات</div>
+        <div class="actions">
+            <button class="btn-secondary" onclick="showAddForm()">افزودن ربات جدید</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="card">
+            <h2>ربات‌های شما</h2>
+            <div id="bots-list" class="bots-grid">
+                {% if bots %}
+                    {% for name, info in bots.items() %}
+                    <div class="bot-card" data-name="{{ name }}">
+                        <div class="bot-header">
+                            <span class="bot-name">{{ name }}</span>
+                            <span class="status {% if info.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                {% if info.status == 'active' %}فعال{% else %}غیرفعال{% endif %}
+                            </span>
+                        </div>
+                        <div class="bot-actions">
+                            {% if info.status == 'active' %}
+                            <button class="btn-danger" onclick="deactivateBot('{{ name }}')">غیرفعال‌سازی</button>
+                            {% else %}
+                            <button class="btn-success" onclick="activateBot('{{ name }}')">فعال‌سازی</button>
+                            {% endif %}
+                            <button class="btn-outline" onclick="deleteBot('{{ name }}')">حذف</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-state">هنوز رباتی اضافه نکرده‌اید.</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <div id="add-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>افزودن ربات جدید</h3>
+            <form id="add-form" onsubmit="return submitAddForm(event)">
+                <label for="bot-name">نام ربات (یکتا)</label>
+                <input type="text" id="bot-name" required>
+
+                <label for="bot-token">توکن ربات (از BotFather روبیکا)</label>
+                <input type="text" id="bot-token" required>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary">ذخیره</button>
+                    <button type="button" class="btn-outline" onclick="hideAddForm()">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script>
+        async function api(url, options = {}) {
+            const res = await fetch(url, options);
+            return res.json();
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3000);
+        }
+
+        function showAddForm() {
+            document.getElementById('add-modal').classList.remove('hidden');
+        }
+
+        function hideAddForm() {
+            document.getElementById('add-modal').classList.add('hidden');
+            document.getElementById('add-form').reset();
+        }
+
+        async function submitAddForm(e) {
+            e.preventDefault();
+            const name = document.getElementById('bot-name').value.trim();
+            const token = document.getElementById('bot-token').value.trim();
+            const fd = new FormData();
+            fd.append('name', name);
+            fd.append('token', token);
+
+            const result = await api('/api/bots/add', { method: 'POST', body: fd });
+            if (result.ok) {
+                showToast('ربات با موفقیت اضافه شد');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(result.error || 'خطا در افزودن ربات');
+            }
+            return false;
+        }
+
+        async function activateBot(name) {
+            showToast('در حال فعال‌سازی...');
+            const result = await api(`/api/bots/${name}/activate`, { method: 'POST' });
+            if (result.ok) {
+                showToast('ربات فعال شد');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(result.error || 'خطا در فعال‌سازی');
+            }
+        }
+
+        async function deactivateBot(name) {
+            const result = await api(`/api/bots/${name}/deactivate`, { method: 'POST' });
+            if (result.ok) {
+                showToast('ربات غیرفعال شد');
+                setTimeout(() => location.reload(), 800);
+            }
+        }
+
+        async function deleteBot(name) {
+            if (!confirm('از حذف این ربات مطمئن هستید؟')) return;
+            const result = await api(`/api/bots/${name}/delete`, { method: 'POST' });
+            if (result.ok) {
+                showToast('ربات حذف شد');
+                setTimeout(() => location.reload(), 800);
+            }
+        }
+    </script>
+</body>
+</html>
